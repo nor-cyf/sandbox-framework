@@ -15,6 +15,8 @@ clock = pygame.time.Clock()
 pygame.display.set_caption('Running') 
 BG = (0, 0, 0)
 
+
+
 #divides that sheet by the number of frames its got, returns a list of single sprites
 def subsprite(sheet, frame_width, frame_height):
     sheet_width, sheet_height = sheet.get_size()
@@ -27,11 +29,12 @@ def subsprite(sheet, frame_width, frame_height):
 
 #animations: as a dict of lists, the lists contain a list of frames and a frame duration
 animations = {
-    "idle":[subsprite(pygame.image.load("_Idle.png").convert(), 32, 32), 0.15],
+    "idle":[subsprite(pygame.image.load("_Idle.png").convert(), 120, 80), 0.15],
     "running":[],
     "jumping" : [],
 }
 
+#animator class used during player intantiation, made to be used with different animation objects
 
 class Animator:
     def __init__(self, animations):
@@ -42,14 +45,12 @@ class Animator:
 
     def update(self, dt, player):
         state = player.state
-        frames, frame_speed = self.animations[state]
-        self.timer += dt
+        frames, frame_speed = self.animations["idle"]
         
-        if self.state != self.last_state:
+        if state != self.last_state:
             self.frame_index = 0 
             self.timer = 0
-            self.last_state = self.state
-        
+            self.last_state = state
         self.timer += dt
         if self.timer >= frame_speed:
             self.timer = 0
@@ -58,52 +59,82 @@ class Animator:
 
     def get_frame(self, player):
         state = player.state
-        frames = self.animations[state][0]
+        frames = self.animations["idle"][0]
         return frames[self.frame_index]
-    
-        
+
+
+#Movement component to be plugged into the player class to then influence on player velocity etc
+
+class Movement:
+    def __init__ (self, speed = 200, jump_force = -400, gravity = 1000):
+        self.speed = speed
+        self.jump_force = jump_force
+        self.gravity = gravity
+
+    def handle_input(self, player):#to set a direction
+        keys = pygame.key.get_pressed()
+        player.direction.x = 0
+
+        if keys[pygame.K_a]:
+            player.direction.x -= 1
+        if keys[pygame.K_d]:
+            player.direction.x += 1
+
+
+    def apply_physics(self, dt, player):
+        #apply physics and update pos
+        player.velocity.x = player.direction.x * self.speed
+        player.velocity.y += self.gravity * dt
+
+        #update position
+        player.pos.x += player.velocity.x * dt
+        player.pos.y += player.velocity.y * dt
+
 
 #player class
 #creates a player object at a given pos
 
 class Player:
-    def __init__(self, pos):
+    def __init__(self, pos, animator, movement):
         self.pos = pygame.math.Vector2(pos)
         self.direction = pygame.math.Vector2()
         self.velocity = pygame.math.Vector2()
         self.state = "idle"
+       
+        self.animator = animator
+        self.movement = movement
 
     def update_state(self):
         if self.velocity == (0, 0):
             self.state = "idle"
 
-        elif self.velocity.x > 0:
-            self.state = "running"
-
-        elif self.velocity.y > 0:
+        elif self.velocity.y != 0:
             self.state = "jumping"
 
+        elif self.velocity.x != 0:
+            self.state = "running"
+
+    def update(self, dt):
+        self.update_state()
+        self.movement.apply_physics(dt, self)
+        self.animator.update(dt, self)
+
+    def draw(self, screen):
+        sprite = self.animator.get_frame(self)
+        screen.blit(sprite, self.pos)
+
+        
+
     
-player = Player((50, 50))
+
+    
+player = Player((50, 50), Animator(animations), Movement())
 
 
 #components, to move to separate files once writtten
 
 ##intantiate an Input object with a normalised direction vector
 
-class Input():
-    def __init__(self):
-        self.direction = pygame.math.Vector2()
-    
-    def update(self, keys):
-        #resets the direction to check for new Input
-        self.direction.xy = 0, 0
-
-
-#sprite selection depending on the player state
-#when idle, select animations.idle
-
-class 
 
 
 
@@ -118,23 +149,23 @@ class
 
 while True:
     dt = clock.tick(60) / 1000
-
-    #key will be one if pressed and 0 if not
-    keys = pygame.key.get_pressed():
-
-    if keys[pygame.K_RIGHT]:
-        
-
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
     screen.fill(BG)
+    player.update(dt)
+    player.draw(screen)
 
     #collision_check
     #collision_correction
+    #collision_opposite_force
+
+
+    pygame.display.update()
+
+
     #collision_opposite_force
 
 
