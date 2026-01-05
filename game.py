@@ -30,8 +30,10 @@ def subsprite(sheet, frame_width, frame_height):
 #animations: as a dict of lists, the lists contain a list of frames and a frame duration
 animations = {
     "idle":[subsprite(pygame.image.load("_Idle.png").convert(), 120, 80), 0.15],
-    "running":[],
-    "jumping" : [],
+    "running":[subsprite(pygame.image.load("_Run.png").convert(), 120, 80), 0.09],
+    "jumping" : [subsprite(pygame.image.load("_Jump.png").convert(), 120, 80), 0.03],
+    "falling" : [subsprite(pygame.image.load("_Fall.png").convert(), 120, 80), 0.03],
+
 }
 
 #animator class used during player intantiation, made to be used with different animation objects
@@ -45,7 +47,7 @@ class Animator:
 
     def update(self, dt, player):
         state = player.state
-        frames, frame_speed = self.animations["idle"]
+        frames, frame_speed = self.animations[state]
         
         if state != self.last_state:
             self.frame_index = 0 
@@ -59,7 +61,7 @@ class Animator:
 
     def get_frame(self, player):
         state = player.state
-        frames = self.animations["idle"][0]
+        frames = self.animations[state][0]
         return frames[self.frame_index]
 
 
@@ -71,20 +73,25 @@ class Movement:
         self.jump_force = jump_force
         self.gravity = gravity
 
-    def handle_input(self, player):#to set a direction
+    def handle_input(self, player, events):#to set a direction
         keys = pygame.key.get_pressed()
-        player.direction.x = 0
+        player.direction.x = 0 
 
         if keys[pygame.K_a]:
             player.direction.x -= 1
         if keys[pygame.K_d]:
             player.direction.x += 1
 
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    player.velocity.y = self.jump_force
+
 
     def apply_physics(self, dt, player):
         #apply physics and update pos
         player.velocity.x = player.direction.x * self.speed
-        player.velocity.y += self.gravity * dt
+        player.velocity.y += self.gravity * dt 
 
         #update position
         player.pos.x += player.velocity.x * dt
@@ -108,15 +115,20 @@ class Player:
         if self.velocity == (0, 0):
             self.state = "idle"
 
-        elif self.velocity.y != 0:
-            self.state = "jumping"
 
         elif self.velocity.x != 0:
             self.state = "running"
 
-    def update(self, dt):
-        self.update_state()
+        elif self.velocity.y > 0:
+            self.state = "falling"
+        
+        elif self.velocity.y < 0:
+            self.state = "jumping"
+    
+    def update(self, dt, events):
+        self.movement.handle_input(self, events)
         self.movement.apply_physics(dt, self)
+        self.update_state()
         self.animator.update(dt, self)
 
     def draw(self, screen):
@@ -149,13 +161,14 @@ player = Player((50, 50), Animator(animations), Movement())
 
 while True:
     dt = clock.tick(60) / 1000
-    for event in pygame.event.get():
+    events = pygame.event.get()
+    for event in events:
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
     screen.fill(BG)
-    player.update(dt)
+    player.update(dt, events)
     player.draw(screen)
 
     #collision_check
@@ -165,9 +178,7 @@ while True:
 
     pygame.display.update()
 
+    print(player.state)
 
-    #collision_opposite_force
 
-
-    pygame.display.update()
 
